@@ -802,7 +802,10 @@ class HubNode:
         loop = asyncio.get_event_loop()
         asyncio.get_child_watcher().attach_loop(loop)
         command = [
-            self.daemon_bin, 'serve', '--esindex', self.spv_node.index_name + 'claims', '--debug'
+            self.daemon_bin, 'serve',
+            '--db-path', os.path.join(self.spv_node.data_path,'lbry-rocksdb'),
+            '--esindex', self.spv_node.index_name + 'claims',
+            '--debug'
         ]
         self.log.info(' '.join(command))
         self.protocol = HubProcess(self.running, self._stopped)
