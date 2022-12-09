@@ -32,12 +32,12 @@ class EpicAdventuresOfChris45(CommandTestCase):
         # Chris doesn't sit idly by: he checks his balance!
 
         result = await self.daemon.jsonrpc_account_balance()
-        self.assertEqual(result['available'], '8.989893')
+        self.assertEqual(result['available'], '8.989898')
 
         # He waits for 6 more blocks (confirmations) to make sure the balance has been settled.
         await self.generate(6)
         result = await self.daemon.jsonrpc_account_balance(confirmations=6)
-        self.assertEqual(result['available'], '8.989893')
+        self.assertEqual(result['available'], '8.989898')
 
         # And is the channel resolvable and empty?
         response = await self.resolve('lbry://@spam')
@@ -60,7 +60,7 @@ class EpicAdventuresOfChris45(CommandTestCase):
         # He quickly checks the unconfirmed balance to make sure everything looks
         # correct.
         result = await self.daemon.jsonrpc_account_balance()
-        self.assertEqual(result['available'], '7.969786')
+        self.assertEqual(result['available'], '7.969796')
 
         # Also checks that his new story can be found on the blockchain before
         # giving the link to all his friends.
@@ -71,7 +71,7 @@ class EpicAdventuresOfChris45(CommandTestCase):
         await self.generate(5)
         # When he comes back he verifies the confirmed balance.
         result = await self.daemon.jsonrpc_account_balance()
-        self.assertEqual(result['available'], '7.969786')
+        self.assertEqual(result['available'], '7.969796')
 
         # As people start reading his story they discover some typos and notify
         # Chris who explains in despair "Oh! Noooooos!" but then remembers
@@ -96,7 +96,7 @@ class EpicAdventuresOfChris45(CommandTestCase):
         # After abandoning he just waits for his LBCs to be returned to his account
         await self.generate(5)
         result = await self.daemon.jsonrpc_account_balance()
-        self.assertEqual(result['available'], '8.9693455')
+        self.assertEqual(result['available'], '8.9693655')
 
         # Amidst all this Chris receives a call from his friend Ramsey
         # who says that it is of utmost urgency that Chris transfer him
@@ -112,7 +112,7 @@ class EpicAdventuresOfChris45(CommandTestCase):
         await self.generate(5)
         result = await self.daemon.jsonrpc_account_balance()
         # Chris' balance was correct
-        self.assertEqual(result['available'], '7.9692215')
+        self.assertEqual(result['available'], '7.9692465')
 
         # Ramsey too assured him that he had received the 1 LBC and thanks him
         result = await self.daemon.jsonrpc_account_balance(ramsey_account_id)
