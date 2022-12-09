@@ -68,10 +68,10 @@ class WalletCommands(CommandTestCase):
         tx = await self.account_send('2.0', p2sh_address1)
         self.assertEqual(tx['outputs'][0]['address'], p2sh_address1)
         self.assertEqual(await self.blockchain.get_balance(), str(float(bal)+3))  # +1 lbc for confirm block
-        await self.assertBalance(self.account, '7.999877')
+        await self.assertBalance(self.account, '7.999882')
         await self.wallet_send('3.0', p2sh_address1)
         self.assertEqual(await self.blockchain.get_balance(), str(float(bal)+7))  # +1 lbc for confirm block
-        await self.assertBalance(self.account, '4.999754')
+        await self.assertBalance(self.account, '4.999764')
 
     async def test_balance_caching(self):
         account2 = await self.daemon.jsonrpc_account_create("Tip-er")
@@ -109,8 +109,8 @@ class WalletCommands(CommandTestCase):
         await self.generate(1)
 
         expected = {
-            'total': '19.979893',
-            'available': '18.979893',
+            'total': '19.979898',
+            'available': '18.979898',
             'reserved': '1.0',
             'reserved_subtotals': {'claims': '1.0', 'supports': '0.0', 'tips': '0.0'}
         }
@@ -118,7 +118,7 @@ class WalletCommands(CommandTestCase):
         query_count = self.ledger.db.db.query_count
         self.assertEqual(await wallet_balance(), expected)
         query_count += 1  # only one of the accounts changed
-        self.assertEqual(dict_values_to_lbc(ledger._balance_cache.get(self.account.id))['total'], '9.979893')
+        self.assertEqual(dict_values_to_lbc(ledger._balance_cache.get(self.account.id))['total'], '9.979898')
         self.assertEqual(dict_values_to_lbc(ledger._balance_cache.get(account2.id))['total'], '10.0')
         self.assertEqual(self.ledger.db.db.query_count, query_count)
 
@@ -146,8 +146,8 @@ class WalletCommands(CommandTestCase):
         await self.stream_update(self.get_claim_id(stream1), data=b'news', bid='1.0')
         await self.support_create(self.get_claim_id(stream1), '2.0')
         expected = {
-            'total': '9.977534',
-            'available': '6.977534',
+            'total': '9.977549',
+            'available': '6.977549',
             'reserved': '3.0',
             'reserved_subtotals': {'claims': '1.0', 'supports': '2.0', 'tips': '0.0'}
         }
@@ -160,14 +160,14 @@ class WalletCommands(CommandTestCase):
         tx = await self.daemon.jsonrpc_account_send('1.0', address2, blocking=True)
         await self.confirm_tx(tx.id)
         self.assertEqual(await account_balance(), {
-            'total': '8.97741',
-            'available': '5.97741',
+            'total': '8.97743',
+            'available': '5.97743',
             'reserved': '3.0',
             'reserved_subtotals': {'claims': '1.0', 'supports': '2.0', 'tips': '0.0'}
         })
         self.assertEqual(await wallet_balance(), {
-            'total': '9.97741',
-            'available': '6.97741',
+            'total': '9.97743',
+            'available': '6.97743',
             'reserved': '3.0',
             'reserved_subtotals': {'claims': '1.0', 'supports': '2.0', 'tips': '0.0'}
         })
@@ -177,14 +177,14 @@ class WalletCommands(CommandTestCase):
             self.get_claim_id(stream1), '0.3', tip=True, wallet_id=wallet2.id
         )
         self.assertEqual(await account_balance(), {
-            'total': '9.27741',
-            'available': '5.97741',
+            'total': '9.27743',
+            'available': '5.97743',
             'reserved': '3.3',
             'reserved_subtotals': {'claims': '1.0', 'supports': '2.0', 'tips': '0.3'}
         })
         self.assertEqual(await wallet_balance(), {
-            'total': '10.27741',
-            'available': '6.97741',
+            'total': '10.27743',
+            'available': '6.97743',
             'reserved': '3.3',
             'reserved_subtotals': {'claims': '1.0', 'supports': '2.0', 'tips': '0.3'}
         })
@@ -193,14 +193,14 @@ class WalletCommands(CommandTestCase):
         tx = await self.daemon.jsonrpc_support_abandon(txid=support1['txid'], nout=0, blocking=True)
         await self.confirm_tx(tx.id)
         self.assertEqual(await account_balance(), {
-            'total': '9.277303',
-            'available': '6.277303',
+            'total': '9.277328',
+            'available': '6.277328',
             'reserved': '3.0',
             'reserved_subtotals': {'claims': '1.0', 'supports': '2.0', 'tips': '0.0'}
         })
         self.assertEqual(await wallet_balance(), {
-            'total': '10.277303',
-            'available': '7.277303',
+            'total': '10.277328',
+            'available': '7.277328',
             'reserved': '3.0',
             'reserved_subtotals': {'claims': '1.0', 'supports': '2.0', 'tips': '0.0'}
         })
@@ -214,14 +214,14 @@ class WalletCommands(CommandTestCase):
             self.get_claim_id(stream2), '0.2', tip=True, wallet_id=wallet2.id
         )
         self.assertEqual(await account_balance(), {
-            'total': '9.277303',
-            'available': '6.277303',
+            'total': '9.277328',
+            'available': '6.277328',
             'reserved': '3.0',
             'reserved_subtotals': {'claims': '1.0', 'supports': '2.0', 'tips': '0.0'}
         })
         self.assertEqual(await wallet_balance(), {
-            'total': '10.439196',
-            'available': '7.139196',
+            'total': '10.439226',
+            'available': '7.139226',
             'reserved': '3.3',
             'reserved_subtotals': {'claims': '1.1', 'supports': '2.0', 'tips': '0.2'}
         })

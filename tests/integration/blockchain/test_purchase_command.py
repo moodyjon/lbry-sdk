@@ -177,7 +177,7 @@ class PurchaseCommandTests(CommandTestCase):
         await self.send_to_address_and_wait(address2, 2, 1, ledger=daemon2.ledger)
 
         stream = await self.priced_stream('a', '1.0')
-        await self.assertBalance(self.account, '9.987893')
+        await self.assertBalance(self.account, '9.987898')
         self.assertItemCount(await self.daemon.jsonrpc_utxo_list(), 1)
 
         purchase = await daemon2.jsonrpc_purchase_create(stream.outputs[0].claim_id)
@@ -187,8 +187,8 @@ class PurchaseCommandTests(CommandTestCase):
 
         # confirm that available and reserved take into account purchase received
         self.assertEqual(await self.account.get_detailed_balance(), {
-            'total': 1099789300,
-            'available': 1098789300,
+            'total': 1099789800,
+            'available': 1098789800,
             'reserved': 1000000,
             'reserved_subtotals': {'claims': 1000000, 'supports': 0, 'tips': 0}
         })
@@ -198,7 +198,7 @@ class PurchaseCommandTests(CommandTestCase):
         await self.ledger.wait(spend)
         await self.generate(1)
         await self.ledger.wait(spend)
-        await self.assertBalance(self.account, '0.487695')
+        await self.assertBalance(self.account, '0.487705')
         self.assertItemCount(await self.daemon.jsonrpc_utxo_list(), 1)
 
     async def test_owner_not_required_purchase_own_content(self):

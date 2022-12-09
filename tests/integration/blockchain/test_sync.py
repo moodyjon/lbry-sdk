@@ -89,12 +89,12 @@ class SyncTests(IntegrationTestCase):
         self.assertGreater(await account1.get_address_count(chain=1), 6)
         self.assertGreater(await account2.get_address_count(chain=1), 6)
         await self.assertBalance(account0, '0.01')
-        await self.assertBalance(account1, '0.989876')
-        await self.assertBalance(account2, '0.989876')
+        await self.assertBalance(account1, '0.989881')
+        await self.assertBalance(account2, '0.989881')
 
         await self.generate(1)
 
         # create a new mirror node and see if it syncs to same balance from scratch
         node3 = await self.make_wallet_node(account1.seed)
         account3 = node3.account
-        await self.assertBalance(account3, '0.989876')
+        await self.assertBalance(account3, '0.989881')

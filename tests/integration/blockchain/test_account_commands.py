@@ -109,9 +109,9 @@ class AccountManagement(CommandTestCase):
             '0.05', await self.daemon.jsonrpc_address_unused(account_id=second_account.id), blocking=True
         )
         await self.confirm_tx(tx.id)
-        await self.assertOutputAmount(['0.05', '9.949876'], utxo_list())
+        await self.assertOutputAmount(['0.05', '9.949881'], utxo_list())
         await self.assertOutputAmount(['0.05'], utxo_list(account_id=second_account.id))
-        await self.assertOutputAmount(['9.949876'], utxo_list(account_id=default_account.id))
+        await self.assertOutputAmount(['9.949881'], utxo_list(account_id=default_account.id))
 
         channel1 = await self.channel_create('@channel-in-account1', '0.01')
         channel2 = await self.channel_create(
@@ -307,10 +307,10 @@ class AccountManagement(CommandTestCase):
         tx = await self.daemon.jsonrpc_account_send('4.0', script_address)
         await self.confirm_tx(tx.id)
         await self.generate(510)
-        await self.assertBalance(self.account, '5.999877')
+        await self.assertBalance(self.account, '5.999882')
         tx = await self.daemon.jsonrpc_account_deposit(
             tx.id, 0, script_source,
             Base58.encode_check(self.ledger.private_key_to_wif(private_key.private_key_bytes))
         )
         await self.confirm_tx(tx.id)
-        await self.assertBalance(self.account, '9.9997545')
+        await self.assertBalance(self.account, '9.9997645')
