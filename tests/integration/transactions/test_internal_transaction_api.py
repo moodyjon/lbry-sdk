@@ -58,8 +58,8 @@ class BasicTransactionTest(IntegrationTestCase):
         ))
         await self.generate(1)
         await notifications
-        self.assertEqual(d2l(await self.account.get_balance()), '7.985786')
-        self.assertEqual(d2l(await self.account.get_balance(include_claims=True)), '9.985786')
+        self.assertEqual(d2l(await self.account.get_balance()), '7.985796')
+        self.assertEqual(d2l(await self.account.get_balance(include_claims=True)), '9.985796')
 
         response = await self.ledger.resolve([], ['lbry://@bar/foo'])
         self.assertEqual(response['lbry://@bar/foo'].claim.claim_type, 'stream')

@@ -11,7 +11,7 @@ class TransactionCommandsTestCase(CommandTestCase):
         tx = await self.account_send('9.9997758', address)
         # dust prevention threshold not reached, small txo created
         self.assertEqual(2, len(tx['outputs']))
-        self.assertEqual(tx['outputs'][1]['amount'], '0.0001002')
+        self.assertEqual(tx['outputs'][1]['amount'], '0.0001052')
         tx = await self.account_send('9.999706', address)
         # dust prevention prevented dust
         self.assertEqual(1, len(tx['outputs']))
