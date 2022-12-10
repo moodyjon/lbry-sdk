@@ -458,11 +458,11 @@ class FileCommands(CommandTestCase):
             fee_address=target_address, claim_address=target_address
         )
         await self.daemon.jsonrpc_file_delete(claim_name='icanpay')
-        await self.assertBalance(self.account, '9.925679')
+        await self.assertBalance(self.account, '9.925694')
         response = await self.daemon.jsonrpc_get('lbry://icanpay')
         raw_content_fee = response.content_fee.raw
         await self.ledger.wait(response.content_fee)
-        await self.assertBalance(self.account, '8.925538')
+        await self.assertBalance(self.account, '8.925558')
         self.assertItemCount(await self.daemon.jsonrpc_file_list(), 1)
 
         await asyncio.wait_for(self.wait_files_to_complete(), timeout=1)
@@ -512,10 +512,10 @@ class FileCommands(CommandTestCase):
         )
         self.assertTrue(await self.daemon.jsonrpc_file_delete(claim_name='somename'))
         # Assert the fee and bid are subtracted
-        await self.assertBalance(self.account, '9.483893')
+        await self.assertBalance(self.account, '9.483898')
         response = await self.daemon.jsonrpc_get('lbry://somename')
         await self.ledger.wait(response.content_fee)
-        await self.assertBalance(self.account, '8.483752')
+        await self.assertBalance(self.account, '8.483762')
 
         # Assert the file downloads
         await asyncio.wait_for(self.wait_files_to_complete(), timeout=1)
