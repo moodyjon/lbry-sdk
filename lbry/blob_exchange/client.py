@@ -37,8 +37,7 @@ class BlobExchangeClientProtocol(asyncio.Protocol):
     def data_received(self, data: bytes):
         if self.connection_manager:
             if not self.peer_address:
-                addr_info = self.transport.get_extra_info('peername')
-                self.peer_address, self.peer_port = addr_info
+                self.peer_address, self.peer_port = self.transport.get_extra_info('peername')[:2]
             # assert self.peer_address is not None
             self.connection_manager.received_data(f"{self.peer_address}:{self.peer_port}", len(data))
         if not self.transport or self.transport.is_closing():
@@ -103,8 +102,7 @@ class BlobExchangeClientProtocol(asyncio.Protocol):
         request = BlobRequest.make_request_for_blob_hash(self.blob.blob_hash)
         blob_hash = self.blob.blob_hash
         if not self.peer_address:
-            addr_info = self.transport.get_extra_info('peername')
-            self.peer_address, self.peer_port = addr_info
+            self.peer_address, self.peer_port = self.transport.get_extra_info('peername')[:2]
         try:
             msg = request.serialize()
             log.debug("send request to %s:%i -> %s", self.peer_address, self.peer_port, msg.decode())
@@ -208,8 +206,7 @@ class BlobExchangeClientProtocol(asyncio.Protocol):
                 self.writer = None
 
     def connection_made(self, transport: asyncio.Transport):
-        addr = transport.get_extra_info('peername')
-        self.peer_address, self.peer_port = addr[0], addr[1]
+        self.peer_address, self.peer_port = transport.get_extra_info('peername')[:2]
         self.transport = transport
         if self.connection_manager:
             self.connection_manager.connection_made(f"{self.peer_address}:{self.peer_port}")

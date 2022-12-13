@@ -171,7 +171,7 @@ class SessionBase(asyncio.Protocol):
         self.transport = transport
         # This would throw if called on a closed SSL transport.  Fixed
         # in asyncio in Python 3.6.1 and 3.5.4
-        peer_address = transport.get_extra_info('peername')
+        peer_address = transport.get_extra_info('peername')[:2]
         # If the Socks proxy was used then _address is already set to
         # the remote address
         if self._address:

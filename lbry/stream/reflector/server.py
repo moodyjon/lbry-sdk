@@ -24,6 +24,8 @@ class ReflectorServerProtocol(asyncio.Protocol):
         self.started_listening = asyncio.Event()
         self.buf = b''
         self.transport: asyncio.StreamWriter = None
+        self.peer_address: typing.Optional[str] = None
+        self.peer_port: typing.Optional[str] = None
         self.writer: typing.Optional['HashBlobWriter'] = None
         self.client_version: typing.Optional[int] = None
         self.descriptor: typing.Optional['StreamDescriptor'] = None
@@ -43,6 +45,7 @@ class ReflectorServerProtocol(asyncio.Protocol):
 
     def connection_made(self, transport):
         self.transport = transport
+        self.peer_address, self.peer_port = self.transport.get_extra_info('peername')[:2]
         self.wait_for_stop_task = self.loop.create_task(self.wait_for_stop())
 
     def connection_lost(self, exc):
@@ -89,7 +92,7 @@ class ReflectorServerProtocol(asyncio.Protocol):
                 return
             self.sd_blob = self.blob_manager.get_blob(request['sd_blob_hash'], request['sd_blob_size'])
             if not self.sd_blob.get_is_verified():
-                self.writer = self.sd_blob.get_blob_writer(self.transport.get_extra_info('peername'))
+                self.writer = self.sd_blob.get_blob_writer(self.peer_address, self.peer_port)
                 self.not_incoming.clear()
                 self.incoming.set()
                 self.send_response({"send_sd_blob": True})
@@ -135,7 +138,7 @@ class ReflectorServerProtocol(asyncio.Protocol):
                 return
             blob = self.blob_manager.get_blob(request['blob_hash'], request['blob_size'])
             if not blob.get_is_verified():
-                self.writer = blob.get_blob_writer(self.transport.get_extra_info('peername'))
+                self.writer = blob.get_blob_writer(self.peer_address, self.peer_port)
                 self.not_incoming.clear()
                 self.incoming.set()
                 self.send_response({"send_blob": True})
@@ -170,7 +173,7 @@ class ReflectorServer:
         self.stop_event = stop_event
         self.partial_needs = partial_needs  # for testing cases where it doesn't know what it wants
 
-    def start_server(self, port: int, interface: typing.Optional[str] = '0.0.0.0'):
+    def start_server(self, port: int, interface: typing.Optional[str] = None):
         if self.server_task is not None:
             raise Exception("already running")
 
@@ -181,9 +184,10 @@ class ReflectorServer:
             server = await self.loop.create_server(lambda: ReflectorServerProtocol(
                 self.blob_manager, self.response_chunk_size, self.stop_event, self.incoming_event,
                 self.not_incoming_event, partial_event), interface, port)
+            for s in server.sockets:
+                log.warning("Reflector server listening on TCP %s", s.getsockname()[:2])
             self.started_listening.set()
             self.stopped_listening.clear()
-            log.info("Reflector server listening on TCP %s:%i", interface, port)
             try:
                 async with server:
                     await server.serve_forever()

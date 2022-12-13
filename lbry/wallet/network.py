@@ -44,7 +44,7 @@ class ClientSession(BaseClientSession):
     def server_address_and_port(self) -> Optional[Tuple[str, int]]:
         if not self.transport:
             return None
-        return self.transport.get_extra_info('peername')
+        return self.transport.get_extra_info('peername')[:2]
 
     async def send_timed_server_version_request(self, args=(), timeout=None):
         timeout = timeout or self.timeout

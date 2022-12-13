@@ -52,7 +52,7 @@ class BlobServerProtocol(asyncio.Protocol):
     def connection_made(self, transport):
         self.transport = transport
         self.close_on_idle_task = self.loop.create_task(self.close_on_idle())
-        self.peer_address_and_port = "%s:%i" % self.transport.get_extra_info('peername')
+        self.peer_address_and_port = "%s:%i" % self.transport.get_extra_info('peername')[:2]
         self.blob_manager.connection_manager.connection_received(self.peer_address_and_port)
         log.debug("received connection from %s", self.peer_address_and_port)
 
@@ -73,8 +73,7 @@ class BlobServerProtocol(asyncio.Protocol):
         self.blob_manager.connection_manager.sent_data(self.peer_address_and_port, len(serialized))
 
     async def handle_request(self, request: BlobRequest):
-        addr = self.transport.get_extra_info('peername')
-        peer_address, peer_port = addr
+        peer_address, peer_port = self.transport.get_extra_info('peername')[:2]
 
         responses = []
         address_request = request.get_address_request()
@@ -163,7 +162,7 @@ class BlobServer:
         self.transfer_timeout = transfer_timeout
         self.server_protocol_class = BlobServerProtocol
 
-    def start_server(self, port: int, interface: typing.Optional[str] = '0.0.0.0'):
+    def start_server(self, port: int, interface: typing.Optional[str] = None):
         if self.server_task is not None:
             raise Exception("already running")
 
@@ -180,8 +179,9 @@ class BlobServer:
                                                    self.idle_timeout, self.transfer_timeout),
                 interface, port
             )
+            for s in server.sockets:
+                log.warning("Blob server listening on TCP %s", s.getsockname()[:2])
             self.started_listening.set()
-            log.info("Blob server listening on TCP %s:%i", interface, port)
             async with server:
                 await server.serve_forever()
 

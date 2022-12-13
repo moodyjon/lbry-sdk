@@ -47,7 +47,7 @@ class ConductorService:
         self.server = await self.loop.create_server(
             self.handler, '0.0.0.0', PORT
         )
-        print('serving on', self.server.sockets[0].getsockname())
+        print('serving on', self.server.sockets[0].getsockname()[:2])
 
     async def stop(self):
         await self.stack.stop()

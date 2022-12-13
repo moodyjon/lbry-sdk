@@ -66,8 +66,8 @@ def mock_network_loop(loop: asyncio.AbstractEventLoop,
         mock_sock.setsockopt = lambda *_: None
         mock_sock.bind = lambda *_: None
         mock_sock.setblocking = lambda *_: None
-        mock_sock.getsockname = lambda: "0.0.0.0"
-        mock_sock.getpeername = lambda: ""
+        mock_sock.getsockname = lambda: ("0.0.0.0", 1001)
+        mock_sock.getpeername = lambda: ("1.2.3.4", 1002)
         mock_sock.close = lambda: None
         mock_sock.type = socket.SOCK_DGRAM
         mock_sock.fileno = lambda: 7

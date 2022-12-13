@@ -318,7 +318,7 @@ class SOCKSProxy:
             sock.setblocking(False)
             await loop.sock_connect(sock, self.address)
             await self._handshake(client, sock, loop)
-            self.peername = sock.getpeername()
+            self.peername = sock.getpeername()[:2]
             return sock
         except Exception as e:
             # Don't close - see https://github.com/kyuupichan/aiorpcX/issues/8
