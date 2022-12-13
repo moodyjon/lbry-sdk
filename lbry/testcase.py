@@ -418,11 +418,11 @@ class CommandTestCase(IntegrationTestCase):
 
         self.server_blob_manager = BlobManager(self.loop, server_tmp_dir, self.server_storage, self.server_config)
         self.server = BlobServer(self.loop, self.server_blob_manager, 'bQEaw42GXsgCAGio1nxFncJSyRmnztSCjP')
-        self.server.start_server(5567, '127.0.0.1')
+        self.server.start_server(5567, 'localhost')
         await self.server.started_listening.wait()
 
         self.reflector = ReflectorServer(self.server_blob_manager)
-        self.reflector.start_server(5566, '127.0.0.1')
+        self.reflector.start_server(5566, 'localhost')
         await self.reflector.started_listening.wait()
         self.addCleanup(self.reflector.stop_server)
 

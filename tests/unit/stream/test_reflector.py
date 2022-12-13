@@ -46,7 +46,7 @@ class TestReflector(AsyncioTestCase):
     async def _test_reflect_stream(self, response_chunk_size=50, partial_needs=False):
         reflector = ReflectorServer(self.server_blob_manager, response_chunk_size=response_chunk_size,
                                     partial_needs=partial_needs)
-        reflector.start_server(5566, '127.0.0.1')
+        reflector.start_server(5566, 'localhost')
         if partial_needs:
             server_blob = self.server_blob_manager.get_blob(self.stream.sd_hash)
             client_blob = self.blob_manager.get_blob(self.stream.sd_hash)
@@ -58,7 +58,7 @@ class TestReflector(AsyncioTestCase):
         await reflector.started_listening.wait()
         self.addCleanup(reflector.stop_server)
         self.assertEqual(0, self.stream.reflector_progress)
-        sent = await self.stream.upload_to_reflector('127.0.0.1', 5566)
+        sent = await self.stream.upload_to_reflector('::1', 5566)
         self.assertEqual(100, self.stream.reflector_progress)
         if partial_needs:
             self.assertFalse(self.stream.is_fully_reflected)
@@ -71,7 +71,7 @@ class TestReflector(AsyncioTestCase):
             set(map(lambda b: b.blob_hash,
                     self.stream.descriptor.blobs[:-1] + [self.blob_manager.get_blob(self.stream.sd_hash)]))
         )
-        send_more = await self.stream.upload_to_reflector('127.0.0.1', 5566)
+        send_more = await self.stream.upload_to_reflector('::1', 5566)
         self.assertEqual(len(send_more), 0)
         self.assertTrue(self.stream.is_fully_reflected)
         server_sd_blob = self.server_blob_manager.get_blob(self.stream.sd_hash)
@@ -105,11 +105,11 @@ class TestReflector(AsyncioTestCase):
         reflector = ReflectorServer(
             self.server_blob_manager, response_chunk_size=50, stop_event=stop, incoming_event=incoming
         )
-        reflector.start_server(5566, '127.0.0.1')
+        reflector.start_server(5566, '::1')
         await reflector.started_listening.wait()
         self.addCleanup(reflector.stop_server)
         self.assertEqual(0, self.stream.reflector_progress)
-        reflect_task = asyncio.create_task(self.stream.upload_to_reflector('127.0.0.1', 5566))
+        reflect_task = asyncio.create_task(self.stream.upload_to_reflector('::1', 5566))
         await incoming.wait()
         stop.set()
         # this used to raise (and then propagate) a CancelledError
@@ -194,11 +194,11 @@ class TestReflector(AsyncioTestCase):
             self.server_blob_manager, response_chunk_size=50, stop_event=stop, incoming_event=incoming,
             not_incoming_event=not_incoming
         )
-        reflector.start_server(5566, '127.0.0.1')
+        reflector.start_server(5566, '::1')
         await reflector.started_listening.wait()
         self.addCleanup(reflector.stop_server)
         self.assertEqual(0, self.stream.reflector_progress)
-        reflect_task = asyncio.create_task(self.stream.upload_to_reflector('127.0.0.1', 5566))
+        reflect_task = asyncio.create_task(self.stream.upload_to_reflector('::1', 5566))
         await incoming.wait()
         await not_incoming.wait()
         await incoming.wait()
