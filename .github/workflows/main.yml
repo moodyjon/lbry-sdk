@@ -38,6 +38,8 @@ jobs:
       - name: set pip cache dir
         id: pip-cache
         run: echo "::set-output name=dir::$(pip cache dir)"
+      - name: debug pip cache
+        run: echo "PIP_CACHE_DIR=${{ steps.pip-cache.outputs.dir }}"
       - name: extract pip cache
         uses: actions/cache@v2
         with:
@@ -154,6 +156,8 @@ jobs:
       - name: set pip cache dir
         id: pip-cache
         run: echo "::set-output name=dir::$(pip cache dir)"
+      - name: debug pip cache
+        run: echo "PIP_CACHE_DIR=${{ steps.pip-cache.outputs.dir }}"
       - name: extract pip cache
         uses: actions/cache@v2
         with:
