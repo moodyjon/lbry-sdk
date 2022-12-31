@@ -394,8 +394,10 @@ def is_valid_public_ipv6(address, allow_localhost: bool = False, allow_lan: bool
             return True
         if allow_lan and parsed_ip.is_private:
             return True
-        return not any((parsed_ip.version != 6, parsed_ip.is_unspecified, parsed_ip.is_link_local, parsed_ip.is_loopback,
-                        parsed_ip.is_multicast, parsed_ip.is_reserved, parsed_ip.is_private))
+        return not any((parsed_ip.version != 6, parsed_ip.is_unspecified,
+                        parsed_ip.is_link_local, parsed_ip.is_loopback,
+                        parsed_ip.is_multicast, parsed_ip.is_reserved,
+                        parsed_ip.is_private))
     except (ipaddress.AddressValueError, ValueError):
         return False
 
