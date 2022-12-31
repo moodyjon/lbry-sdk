@@ -179,6 +179,10 @@ class TestCompactAddress(unittest.TestCase):
         decoded = decode_compact_address(make_compact_address(node_id, address, port))
         self.assertEqual((node_id, address, port), decoded)
 
+    def test_encode_decode_v6(self, address='2001:db8:7654:3210:fedc:ba98:7654:3210', port=4444, node_id=b'1' * 48):
+        decoded = decode_compact_address(make_compact_address(node_id, address, port))
+        self.assertEqual((node_id, address, port), decoded)
+
     def test_errors(self):
         self.assertRaises(ValueError, make_compact_address, b'1' * 48, '1.2.3.4', 0)
         self.assertRaises(ValueError, make_compact_address, b'1' * 48, '1.2.3.4', 65536)

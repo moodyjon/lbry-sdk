@@ -19,6 +19,7 @@ from lbry.dht.error import RemoteException, TransportNotConnected
 from lbry.dht.protocol.routing_table import TreeRoutingTable
 from lbry.dht.protocol.data_store import DictDataStore
 from lbry.dht.peer import make_kademlia_peer
+from lbry.dht.serialization.datagram import make_compact_address
 
 if typing.TYPE_CHECKING:
     from lbry.dht.peer import PeerManager, KademliaPeer
@@ -46,10 +47,7 @@ class KademliaRPC:
         self.token_secret = constants.generate_id()
 
     def compact_address(self):
-        compact_ip = functools.reduce(lambda buff, x: buff + bytearray([int(x)]),
-                                      self.protocol.external_ip.split('.'), bytearray())
-        compact_port = self.peer_port.to_bytes(2, 'big')
-        return compact_ip + compact_port + self.protocol.node_id
+        return make_compact_address(self.protocol.node_id, self.protocol.external_ip, self.peer_port)
 
     @staticmethod
     def ping():

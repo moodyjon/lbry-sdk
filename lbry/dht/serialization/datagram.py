@@ -1,5 +1,5 @@
+import ipaddress
 import typing
-from functools import reduce
 from lbry.dht import constants
 from lbry.dht.serialization.bencoding import bencode, bdecode
 
@@ -179,10 +179,7 @@ def decode_datagram(datagram: bytes) -> typing.Union[RequestDatagram, ResponseDa
 
 
 def make_compact_ip(address: str) -> bytearray:
-    compact_ip = reduce(lambda buff, x: buff + bytearray([int(x)]), address.split('.'), bytearray())
-    if len(compact_ip) != 4:
-        raise ValueError("invalid IPv4 length")
-    return compact_ip
+    return ipaddress.ip_address(address).packed
 
 
 def make_compact_address(node_id: bytes, address: str, port: int) -> bytearray:
@@ -195,11 +192,20 @@ def make_compact_address(node_id: bytes, address: str, port: int) -> bytearray:
 
 
 def decode_compact_address(compact_address: bytes) -> typing.Tuple[bytes, str, int]:
-    address = "{}.{}.{}.{}".format(*compact_address[:4])
-    port = int.from_bytes(compact_address[4:6], 'big')
-    node_id = compact_address[6:]
+    length = len(compact_address)
+    node_id_len = constants.HASH_BITS // 8
+    v4_len = (ipaddress.IPV4LENGTH // 8) + 2 + node_id_len
+    v6_len = (ipaddress.IPV6LENGTH // 8) + 2 + node_id_len
+    if length not in (v4_len, v6_len):
+        raise ValueError(f"invalid compact_address length ({length})")
+    node_id = compact_address[length-node_id_len:length]
+    length -= node_id_len
+    port = int.from_bytes(compact_address[length-2:length], 'big')
+    length -= 2
     if not 0 < port < 65536:
         raise ValueError(f'Invalid port: {port}')
-    if len(node_id) != constants.HASH_BITS // 8:
-        raise ValueError("invalid node node_id length")
-    return node_id, address, port
+    if length == v6_len:
+        address = ipaddress.IPv6Address(compact_address[:length])
+    else:
+        address = ipaddress.IPv4Address(compact_address[:length])
+    return node_id, address.compressed, port
