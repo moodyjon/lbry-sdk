@@ -204,7 +204,7 @@ def decode_compact_address(compact_address: bytes) -> typing.Tuple[bytes, str, i
     length -= 2
     if not 0 < port < 65536:
         raise ValueError(f'Invalid port: {port}')
-    if length == v6_len:
+    if length == (ipaddress.IPV6LENGTH // 8):
         address = ipaddress.IPv6Address(compact_address[:length])
     else:
         address = ipaddress.IPv4Address(compact_address[:length])
