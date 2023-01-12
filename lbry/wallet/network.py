@@ -255,7 +255,7 @@ class Network:
         pongs = {}
         known_hubs = self.known_hubs
         try:
-            await loop.create_datagram_endpoint(lambda: connection, ('::', 0))
+            await loop.create_datagram_endpoint(lambda: connection, ('0.0.0.0', 0))
             # could raise OSError if it cant bind
             start = perf_counter()
             for server in ip_to_hostnames:
