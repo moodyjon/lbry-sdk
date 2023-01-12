@@ -221,14 +221,14 @@ class Network:
         self._loop_task.add_done_callback(loop_task_done_callback)
 
     async def resolve_spv_dns(self):
-        hostname_to_ip = {}
+        hostname_to_ip = defaultdict(list)
         ip_to_hostnames = defaultdict(list)
 
         async def resolve_spv(server, port):
             try:
-                server_addr = await resolve_host(server, port, 'udp')
-                hostname_to_ip[server] = (server_addr, port)
-                ip_to_hostnames[(server_addr, port)].append(server)
+                for server_addr in await resolve_host(server, port, 'udp', family=socket.AF_UNSPEC, all_results=True):
+                    hostname_to_ip[server].append((server_addr, port))
+                    ip_to_hostnames[(server_addr, port)].append(server)
             except socket.error:
                 log.warning("error looking up dns for spv server %s:%i", server, port)
             except Exception:
@@ -255,7 +255,7 @@ class Network:
         pongs = {}
         known_hubs = self.known_hubs
         try:
-            await loop.create_datagram_endpoint(lambda: connection, ('0.0.0.0', 0))
+            await loop.create_datagram_endpoint(lambda: connection, ('::', 0))
             # could raise OSError if it cant bind
             start = perf_counter()
             for server in ip_to_hostnames:
@@ -264,15 +264,15 @@ class Network:
             while len(pongs) < n:
                 (remote, ts), pong = await asyncio.wait_for(pong_responses.get(), timeout - (perf_counter() - start))
                 latency = ts - start
-                log.info("%s:%i has latency of %sms (available: %s, height: %i)",
-                         '/'.join(ip_to_hostnames[remote]), remote[1], round(latency * 1000, 2),
+                log.info("%s (%s:%i) has latency of %sms (available: %s, height: %i)",
+                         '/'.join(ip_to_hostnames[remote]), remote[0], remote[1], round(latency * 1000, 2),
                          pong.available, pong.height)
 
                 known_hubs.hubs.setdefault((ip_to_hostnames[remote][0], remote[1]), {}).update(
                     {"country": pong.country_name}
                 )
                 if pong.available:
-                    pongs[(ip_to_hostnames[remote][0], remote[1])] = pong
+                    pongs[(remote[0], remote[1])] = pong, ip_to_hostnames[remote][0]
             return pongs
         except asyncio.TimeoutError:
             if pongs:
@@ -286,13 +286,13 @@ class Network:
                 host, port = random_server
                 log.warning("trying fallback to randomly selected spv: %s:%i", host, port)
                 known_hubs.hubs.setdefault((host, port), {})
-                return {(host, port): None}
+                return {random_server: (None, ip_to_hostnames[random_server][0])}
         finally:
             connection.close()
 
     async def connect_to_fastest(self) -> Optional[ClientSession]:
         fastest_spvs = await self.get_n_fastest_spvs()
-        for (host, port), pong in fastest_spvs.items():
+        for (host, port), (pong, hostname) in fastest_spvs.items():
             if (pong is not None and self.jurisdiction is not None) and \
                     (pong.country_name != self.jurisdiction):
                 continue
@@ -300,11 +300,11 @@ class Network:
                                    concurrency=self.config.get('concurrent_hub_requests', 30))
             try:
                 await client.create_connection()
-                log.info("Connected to spv server %s:%i", host, port)
+                log.info("Connected to spv server %s (%s:%i)", hostname, host, port)
                 await client.ensure_server_version()
                 return client
             except (asyncio.TimeoutError, ConnectionError, OSError, IncompatibleWalletServerError, RPCError):
-                log.warning("Connecting to %s:%d failed", host, port)
+                log.warning("Connecting to %s (%s:%d) failed", hostname, host, port)
                 client._close()
         return
 

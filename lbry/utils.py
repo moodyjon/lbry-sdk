@@ -16,6 +16,7 @@ import contextlib
 import functools
 import collections
 import hashlib
+import netifaces
 import pkg_resources
 
 import certifi
@@ -179,23 +180,25 @@ def cache_concurrent(async_fn):
 
 
 @async_timed_cache(300)
-async def resolve_host(url: str, port: int, proto: str) -> str:
+async def resolve_host(url: str, port: int, proto: str,
+                       family: int = socket.AF_INET, all_results: bool = False) \
+        -> typing.Union[str, typing.List[str]]:
     if proto not in ['udp', 'tcp']:
         raise Exception("invalid protocol")
-    if url.lower() == 'localhost':
-        return '127.0.0.1'
     try:
         if ipaddress.ip_address(url):
             return url
     except ValueError:
         pass
     loop = asyncio.get_running_loop()
-    return (await loop.getaddrinfo(
+    records = await loop.getaddrinfo(
         url, port,
         proto=socket.IPPROTO_TCP if proto == 'tcp' else socket.IPPROTO_UDP,
         type=socket.SOCK_STREAM if proto == 'tcp' else socket.SOCK_DGRAM,
-        family=socket.AF_INET
-    ))[0][4][0]
+        family=family,
+    )
+    results = [sockaddr[0] for fam, type, prot, canonname, sockaddr in records]
+    return results if all_results else results[0]
 
 
 class LRUCacheWithMetrics:
@@ -374,10 +377,10 @@ IPV4_TO_6_RELAY_SUBNET = ipaddress.ip_network('192.88.99.0/24')
 def is_valid_public_ipv4(address, allow_localhost: bool = False, allow_lan: bool = False):
     try:
         parsed_ip = ipaddress.ip_address(address)
-        if parsed_ip.is_loopback and allow_localhost:
-            return True
-        if allow_lan and parsed_ip.is_private:
-            return True
+        if parsed_ip.is_loopback:
+            return allow_localhost
+        if parsed_ip.is_private:
+            return allow_lan
         if any((parsed_ip.version != 4, parsed_ip.is_unspecified, parsed_ip.is_link_local, parsed_ip.is_loopback,
                 parsed_ip.is_multicast, parsed_ip.is_reserved, parsed_ip.is_private)):
             return False
@@ -390,10 +393,10 @@ def is_valid_public_ipv4(address, allow_localhost: bool = False, allow_lan: bool
 def is_valid_public_ipv6(address, allow_localhost: bool = False, allow_lan: bool = False):
     try:
         parsed_ip = ipaddress.ip_address(address)
-        if parsed_ip.is_loopback and allow_localhost:
-            return True
-        if allow_lan and parsed_ip.is_private:
-            return True
+        if parsed_ip.is_loopback:
+            return allow_localhost
+        if parsed_ip.is_private:
+            return allow_lan
         return not any((parsed_ip.version != 6, parsed_ip.is_unspecified,
                         parsed_ip.is_link_local, parsed_ip.is_loopback,
                         parsed_ip.is_multicast, parsed_ip.is_reserved,
@@ -414,50 +417,91 @@ async def fallback_get_external_ip():  # used if spv servers can't be used for i
         return None, None
 
 
-async def _get_external_ip(default_servers) -> typing.Tuple[typing.Optional[str], typing.Optional[str]]:
+async def _get_external_ip(default_servers, family: int = socket.AF_INET) \
+        -> typing.List[typing.Tuple[typing.Optional[str], typing.Optional[str], typing.Optional[str]]]:
     # used if upnp is disabled or non-functioning
     from lbry.wallet.udp import SPVStatusClientProtocol  # pylint: disable=C0415
 
-    hostname_to_ip = {}
+    hostname_to_ip = collections.defaultdict(list)
     ip_to_hostnames = collections.defaultdict(list)
 
     async def resolve_spv(server, port):
         try:
-            server_addr = await resolve_host(server, port, 'udp')
-            hostname_to_ip[server] = (server_addr, port)
-            ip_to_hostnames[(server_addr, port)].append(server)
+            for server_addr in await resolve_host(server, port, 'udp', family=family, all_results=True):
+                hostname_to_ip[server].append((server_addr, port))
+                ip_to_hostnames[(server_addr, port)].append(server)
         except Exception:
             log.exception("error looking up dns for spv servers")
 
     # accumulate the dns results
     await asyncio.gather(*(resolve_spv(server, port) for (server, port) in default_servers))
 
-    loop = asyncio.get_event_loop()
-    pong_responses = asyncio.Queue()
-    connection = SPVStatusClientProtocol(pong_responses)
-    try:
-        await loop.create_datagram_endpoint(lambda: connection, ('0.0.0.0', 0))
-        # could raise OSError if it cant bind
-        randomized_servers = list(ip_to_hostnames.keys())
-        random.shuffle(randomized_servers)
-        for server in randomized_servers:
-            connection.ping(server)
-            try:
-                _, pong = await asyncio.wait_for(pong_responses.get(), 1)
-                if is_valid_public_ipv4(pong.ip_address):
-                    return pong.ip_address, ip_to_hostnames[server][0]
-            except asyncio.TimeoutError:
-                pass
-        return None, None
-    finally:
-        connection.close()
+    local_addrs = []
+    for interface in netifaces.interfaces():
+        addrs_by_family = netifaces.ifaddresses(interface)
+        for fam, records in addrs_by_family.items():
+            if fam not in [netifaces.AF_INET, netifaces.AF_INET6]:
+                continue
+            if family not in [fam, socket.AF_UNSPEC]:
+                continue
+            addrs, temp_addrs = [], []
+            for rec in records:
+                if 'addr' not in rec:
+                    continue
+                if is_valid_public_ipv4(rec['addr'], allow_lan=True):
+                    addrs.append(rec['addr'])
+                    continue
+                if not is_valid_public_ipv6(rec['addr'], allow_lan=True):
+                    continue
+                if rec['flags'] & 0x10: # IN6_IFF_DEPRECATED?
+                    continue
+                if rec['flags'] & netifaces.IN6_IFF_TEMPORARY:
+                    temp_addrs.append(rec['addr'])
+                else:
+                    addrs.append(rec['addr'])
+            if temp_addrs:
+                local_addrs.extend(temp_addrs)
+            else:
+                local_addrs.extend(addrs)
+
+    async def ping_from(local_addr):
+        loop = asyncio.get_event_loop()
+        pong_responses = asyncio.Queue()
+        connection = SPVStatusClientProtocol(pong_responses)
+        try:
+            await loop.create_datagram_endpoint(lambda: connection, (local_addr, 0))
+            # could raise OSError if it cant bind
+            randomized_servers = list(ip_to_hostnames.keys())
+            random.shuffle(randomized_servers)
+            for server in randomized_servers:
+                connection.ping(server)
+                try:
+                    _, pong = await asyncio.wait_for(pong_responses.get(), 1)
+                    if is_valid_public_ip(pong.ip_address):
+                        return pong.ip_address, ip_to_hostnames[server][0], local_addr
+                except asyncio.TimeoutError:
+                    pass
+            return None, None, None
+        finally:
+            connection.close()
+
+    return await asyncio.gather(*(ping_from(local) for local in local_addrs))
 
 
-async def get_external_ip(default_servers) -> typing.Tuple[typing.Optional[str], typing.Optional[str]]:
-    ip_from_spv_servers = await _get_external_ip(default_servers)
-    if not ip_from_spv_servers[1]:
-        return await fallback_get_external_ip()
-    return ip_from_spv_servers
+async def get_external_ip(default_servers, family: int = socket.AF_INET, all_results: bool = False) \
+        -> typing.List[typing.Tuple[typing.Optional[str], typing.Optional[str], typing.Optional[str]]]:
+    external_ips = []
+    if family != socket.AF_INET6:
+        ipv4_from_server = await _get_external_ip(default_servers, family=socket.AF_INET)
+        if not ipv4_from_server:
+            ipv4_from_server = [await fallback_get_external_ip()]
+        if ipv4_from_server:
+            external_ips.extend(filter(lambda rec: rec[0] is not None, ipv4_from_server))
+    if family != socket.AF_INET:
+        ipv6_from_server = await _get_external_ip(default_servers, family=socket.AF_INET6)
+        if ipv6_from_server:
+            external_ips.extend(filter(lambda rec: rec[0] is not None, ipv6_from_server))
+    return external_ips if all_results else external_ips[0]
 
 
 def is_running_from_bundle():
