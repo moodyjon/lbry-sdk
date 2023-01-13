@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import ipaddress
 import json
 import socket
 import random
@@ -247,7 +248,8 @@ class Network:
     async def get_n_fastest_spvs(self, timeout=3.0) -> Dict[Tuple[str, int], Optional[SPVPong]]:
         loop = asyncio.get_event_loop()
         pong_responses = asyncio.Queue()
-        connection = SPVStatusClientProtocol(pong_responses)
+        connection4 = SPVStatusClientProtocol(pong_responses)
+        connection6 = SPVStatusClientProtocol(pong_responses)
         sent_ping_timestamps = {}
         _, ip_to_hostnames = await self.resolve_spv_dns()
         n = len(ip_to_hostnames)
@@ -255,11 +257,16 @@ class Network:
         pongs = {}
         known_hubs = self.known_hubs
         try:
-            await loop.create_datagram_endpoint(lambda: connection, ('0.0.0.0', 0))
+            await loop.create_datagram_endpoint(lambda: connection4, ('0.0.0.0', 0))
+            await loop.create_datagram_endpoint(lambda: connection6, ('::', 0))
             # could raise OSError if it cant bind
             start = perf_counter()
             for server in ip_to_hostnames:
-                connection.ping(server)
+                server_ipaddr = ipaddress.ip_address(server[0])
+                if server_ipaddr.version == 4:
+                    connection4.ping(server)
+                elif server_ipaddr.version == 6:
+                    connection6.ping(server)
                 sent_ping_timestamps[server] = perf_counter()
             while len(pongs) < n:
                 (remote, ts), pong = await asyncio.wait_for(pong_responses.get(), timeout - (perf_counter() - start))
@@ -288,7 +295,8 @@ class Network:
                 known_hubs.hubs.setdefault((host, port), {})
                 return {random_server: (None, ip_to_hostnames[random_server][0])}
         finally:
-            connection.close()
+            connection4.close()
+            connection6.close()
 
     async def connect_to_fastest(self) -> Optional[ClientSession]:
         fastest_spvs = await self.get_n_fastest_spvs()
