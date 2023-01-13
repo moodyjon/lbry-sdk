@@ -5,7 +5,7 @@ import json
 import socket
 import random
 from time import perf_counter
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from typing import Dict, Optional, Tuple
 import aiohttp
 
@@ -243,7 +243,14 @@ class Network:
         else:
             hubs = self.config['default_servers']
         await asyncio.gather(*(resolve_spv(server, port) for (server, port) in hubs))
-        return hostname_to_ip, ip_to_hostnames
+
+        # order the results in "ip_to_hostname" dict same as "hubs" list
+        ordered_ip_to_hostname = OrderedDict()
+        for server, port1 in hubs:
+            for server_addr, port2 in hostname_to_ip[server]:
+                if port1 == port2:
+                    ordered_ip_to_hostname.update({(server_addr, port2): ip_to_hostnames[(server_addr, port2)]})
+        return hostname_to_ip, ordered_ip_to_hostname
 
     async def get_n_fastest_spvs(self, timeout=3.0) -> Dict[Tuple[str, int], Optional[SPVPong]]:
         loop = asyncio.get_event_loop()

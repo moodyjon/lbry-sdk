@@ -187,7 +187,7 @@ async def resolve_host(url: str, port: int, proto: str,
         raise Exception("invalid protocol")
     try:
         if ipaddress.ip_address(url):
-            return url
+            return [url] if all_results else url
     except ValueError:
         pass
     loop = asyncio.get_running_loop()
