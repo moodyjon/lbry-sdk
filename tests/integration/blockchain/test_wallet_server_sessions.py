@@ -190,7 +190,7 @@ class TestHubDiscovery(CommandTestCase):
         self.assertEqual(list(self.daemon.conf.known_hubs), [])
         self.assertEqual(
             self.daemon.ledger.network.client.server_address_and_port,
-            ('127.0.0.1', 50002)
+            ('::1', 50002)
         )
 
         # connect to relay hub which will tell us about the final hubs
@@ -204,7 +204,7 @@ class TestHubDiscovery(CommandTestCase):
             }
         )
         self.assertEqual(
-            self.daemon.ledger.network.client.server_address_and_port, ('127.0.0.1', relay_node.port)
+            self.daemon.ledger.network.client.server_address_and_port, ('::1', relay_node.port)
         )
 
         # use known_hubs to connect to final US hub
@@ -219,17 +219,17 @@ class TestHubDiscovery(CommandTestCase):
             }
         )
         self.assertEqual(
-            self.daemon.ledger.network.client.server_address_and_port, ('127.0.0.1', us_final_node.port)
+            self.daemon.ledger.network.client.server_address_and_port, ('::1', us_final_node.port)
         )
 
         # connection to KP jurisdiction
         self.daemon.conf.jurisdiction = "KP"
         await self.daemon.jsonrpc_wallet_reconnect()
         self.assertEqual(
-            self.daemon.ledger.network.client.server_address_and_port, ('127.0.0.1', kp_final_node.port)
+            self.daemon.ledger.network.client.server_address_and_port, ('::1', kp_final_node.port)
         )
 
-        kp_final_node.server.session_manager._notify_peer('127.0.0.1:9988')
+        kp_final_node.server.session_manager._notify_peer('::1:9988')
         await self.daemon.ledger.network.on_hub.first
         await asyncio.sleep(0.5)  # wait for above event to be processed by other listeners
         self.assertEqual(
@@ -237,7 +237,7 @@ class TestHubDiscovery(CommandTestCase):
                 (relay_node.hostname, relay_node.port): {"country": "FR"},
                 (us_final_node.hostname, us_final_node.port): {"country": "US"},
                 (kp_final_node.hostname, kp_final_node.port): {"country": "KP"},
-                ('127.0.0.1', 9988): {}
+                ('::1', 9988): {}
             }
         )
 
