@@ -193,12 +193,14 @@ class ServerPickingTestCase(AsyncioTestCase):
         s = StatusServer()
         await s.start(0, b'\x00' * 32, 'US', '127.0.0.1', port, True)
         s.set_available()
-        sendto = s._protocol.transport.sendto
 
-        def mock_sendto(data, addr):
-            self.loop.call_later(latency, sendto, data, addr)
+        for protocol in s._protocols:
+            sendto = protocol.transport.sendto
 
-        s._protocol.transport.sendto = mock_sendto
+            def mock_sendto(data, addr):
+                self.loop.call_later(latency, sendto, data, addr)
+
+            protocol.transport.sendto = mock_sendto
 
         self.addCleanup(s.stop)
         return s
