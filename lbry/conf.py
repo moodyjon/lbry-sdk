@@ -327,8 +327,8 @@ class KnownHubsList:
                 known_hubs_file.write(yaml.safe_dump(self.serialized, default_flow_style=False))
 
     def set(self, hub: str, details: Dict):
-        if hub and hub.count(':') == 1:
-            host, port = hub.split(':')
+        if hub and hub.count(':') > 0:
+            host, port = hub.rsplit(':', maxsplit=1)
             hub_parts = (host, int(port))
             if hub_parts not in self.hubs:
                 self.hubs[hub_parts] = details
