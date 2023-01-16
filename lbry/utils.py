@@ -197,7 +197,18 @@ async def resolve_host(url: str, port: int, proto: str,
         type=socket.SOCK_STREAM if proto == 'tcp' else socket.SOCK_DGRAM,
         family=family,
     )
+    def addr_not_ipv4_mapped(rec):
+        _, _, _, _, sockaddr = rec
+        ipaddr = ipaddress.ip_address(sockaddr[0])
+        return ipaddr.version != 6 or not ipaddr.ipv4_mapped
+    records = filter(addr_not_ipv4_mapped, records)
     results = [sockaddr[0] for fam, type, prot, canonname, sockaddr in records]
+    if not results and not all_results:
+        raise socket.gaierror(
+            socket.EAI_ADDRFAMILY,
+            'The specified network host does not have any network '
+            'addresses in the requested address family'
+        )
     return results if all_results else results[0]
 
 
@@ -400,7 +411,7 @@ def is_valid_public_ipv6(address, allow_localhost: bool = False, allow_lan: bool
         return not any((parsed_ip.version != 6, parsed_ip.is_unspecified,
                         parsed_ip.is_link_local, parsed_ip.is_loopback,
                         parsed_ip.is_multicast, parsed_ip.is_reserved,
-                        parsed_ip.is_private))
+                        parsed_ip.is_private, parsed_ip.ipv4_mapped))
     except (ipaddress.AddressValueError, ValueError):
         return False
 
