@@ -512,7 +512,12 @@ async def get_external_ip(default_servers, family: int = socket.AF_INET, all_res
         if ipv4_from_server:
             external_ips.extend(filter(lambda rec: rec[0] is not None, ipv4_from_server))
     if family != socket.AF_INET:
-        ipv6_from_server = await _get_external_ip(default_servers, family=socket.AF_INET6)
+        ipv6_from_server = []
+        try:
+            ipv6_from_server = await _get_external_ip(default_servers, family=socket.AF_INET6)
+        except socket.gaierror as e:
+            if e.errno != socket.EAI_ADDRFAMILY:
+                raise
         if ipv6_from_server:
             external_ips.extend(filter(lambda rec: rec[0] is not None, ipv6_from_server))
     return external_ips if all_results else external_ips[0]
