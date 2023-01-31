@@ -162,22 +162,24 @@ class BlobServer:
         self.transfer_timeout = transfer_timeout
         self.server_protocol_class = BlobServerProtocol
 
-    def start_server(self, port: int, interface: typing.Optional[str] = None):
+    def start_server(self, port: int, interfaces: typing.Optional[typing.List[str]] = None):
         if self.server_task is not None:
             raise Exception("already running")
 
         async def _start_server():
             # checking if the port is in use
             # thx https://stackoverflow.com/a/52872579
+            # XXX: This is of dubious value because it's checking
+            # 'localhost', so typically applies to tests.
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 if s.connect_ex(('localhost', port)) == 0:
-                    # the port is already in use!
-                    log.error("Failed to bind TCP %s:%d", interface, port)
+                    # the port is already in use!0
+                    log.error("Failed to bind TCP %s:%d", interfaces, port)
 
             server = await self.loop.create_server(
                 lambda: self.server_protocol_class(self.loop, self.blob_manager, self.lbrycrd_address,
                                                    self.idle_timeout, self.transfer_timeout),
-                interface, port
+                interfaces, port
             )
             for s in server.sockets:
                 log.warning("Blob server listening on TCP %s", s.getsockname()[:2])

@@ -173,7 +173,7 @@ class ReflectorServer:
         self.stop_event = stop_event
         self.partial_needs = partial_needs  # for testing cases where it doesn't know what it wants
 
-    def start_server(self, port: int, interface: typing.Optional[str] = None):
+    def start_server(self, port: int, interfaces: typing.Optional[typing.List[str]] = None):
         if self.server_task is not None:
             raise Exception("already running")
 
@@ -183,7 +183,7 @@ class ReflectorServer:
                 partial_event.set()
             server = await self.loop.create_server(lambda: ReflectorServerProtocol(
                 self.blob_manager, self.response_chunk_size, self.stop_event, self.incoming_event,
-                self.not_incoming_event, partial_event), interface, port)
+                self.not_incoming_event, partial_event), interfaces, port)
             for s in server.sockets:
                 log.warning("Reflector server listening on TCP %s", s.getsockname()[:2])
             self.started_listening.set()

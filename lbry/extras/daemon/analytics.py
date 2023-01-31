@@ -1,6 +1,7 @@
 import asyncio
 import collections
 import logging
+import socket
 import typing
 import aiohttp
 from lbry import utils
@@ -116,7 +117,7 @@ class AnalyticsManager:
         self.installation_id = installation_id
         self.session_id = session_id
         self.task: typing.Optional[asyncio.Task] = None
-        self.external_ip: typing.Optional[str] = None
+        self.external_ips: typing.List[str] = []
 
     @property
     def enabled(self):
@@ -133,7 +134,13 @@ class AnalyticsManager:
     async def run(self):
         while True:
             if self.enabled:
-                self.external_ip, _ = await utils.get_external_ip(self.conf.lbryum_servers)
+                records = await utils.get_external_ip(
+                    self.conf.lbryum_servers, family=socket.AF_UNSPEC, all_results=True
+                )
+                external_ips = {local: external for external, remote, local in records}
+                # We only care about the external IP addrs in 'network_interfaces'.
+                # TODO: Handle hostname.
+                self.external_ips = [external_ips[local] for local in self.conf.network_interfaces]
                 await self._send_heartbeat()
             await asyncio.sleep(1800)
 
@@ -204,7 +211,7 @@ class AnalyticsManager:
                                        error_msg: typing.Optional[str] = None,
                                        wallet_server: typing.Optional[str] = None):
         await self.track(self._event(TIME_TO_FIRST_BYTES, _download_properties(
-            self.conf, self.external_ip, resolve_duration, total_duration, download_id, name, outpoint,
+            self.conf, self.external_ips, resolve_duration, total_duration, download_id, name, outpoint,
             found_peers_count, tried_peers_count, connection_failures_count, added_fixed_peers, fixed_peers_delay,
             sd_hash, sd_download_duration, head_blob_hash, head_blob_length, head_blob_duration, error, error_msg,
             wallet_server
