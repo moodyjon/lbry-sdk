@@ -296,7 +296,7 @@ class DHTComponent(Component):
             is_bootstrap_node=self.conf.is_bootstrap_node,
             storage=storage
         )
-        self.dht_node.start(self.conf.network_interface, self.conf.known_dht_nodes)
+        self.dht_node.start(self.conf.network_interfaces[0], self.conf.known_dht_nodes)
         log.info("Started the dht")
 
     async def stop(self):
@@ -522,7 +522,7 @@ class PeerProtocolServerComponent(Component):
         peer_port = self.conf.tcp_port
         address = await wallet.get_unused_address()
         self.blob_server = BlobServer(asyncio.get_event_loop(), blob_manager, address)
-        self.blob_server.start_server(peer_port, interface=self.conf.network_interface)
+        self.blob_server.start_server(peer_port, interfaces=self.conf.network_interfaces)
         await self.blob_server.started_listening.wait()
 
     async def stop(self):
