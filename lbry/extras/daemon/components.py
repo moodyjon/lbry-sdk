@@ -13,7 +13,7 @@ from aioupnp.fault import UPnPError
 
 from lbry import utils
 from lbry.dht.node import Node
-from lbry.dht.peer import is_valid_public_ipv4
+from lbry.dht.peer import is_valid_public_ip
 from lbry.dht.blob_announcer import BlobAnnouncer
 from lbry.blob.blob_manager import BlobManager
 from lbry.blob.disk_space_manager import DiskSpaceManager
@@ -574,7 +574,7 @@ class UPnPComponent(Component):
                     log.info("got external ip from UPnP: %s", external_ip)
             except (asyncio.TimeoutError, UPnPError, NotImplementedError):
                 pass
-        if external_ip and not is_valid_public_ipv4(external_ip):
+        if external_ip and not is_valid_public_ip(external_ip):
             log.warning("UPnP returned a private/reserved ip - %s, checking lbry.com fallback", external_ip)
             external_ip, _ = await utils.get_external_ip(self.conf.lbryum_servers)
         if self.external_ip and self.external_ip != external_ip:
