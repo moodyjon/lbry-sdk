@@ -200,7 +200,7 @@ class Node:
                                   max_results: int = constants.K) -> InterleavingFinder[IterativeNodeFinder]:
         finders = []
         compatible_peers = defaultdict(list)
-        for peer in shortlist:
+        for peer in shortlist or []:
             compatible_peers[ipaddress.ip_address(peer.address).version].append(peer)
         for protocol in [self.protocol]:
             shortlist = compatible_peers[protocol.external_ip_version] or protocol.routing_table.find_close_peers(key)
@@ -211,7 +211,7 @@ class Node:
                                    max_results: int = -1) -> InterleavingFinder[IterativeValueFinder]:
         finders = []
         compatible_peers = defaultdict(list)
-        for peer in shortlist:
+        for peer in shortlist or []:
             compatible_peers[ipaddress.ip_address(peer.address).version].append(peer)
         for protocol in [self.protocol]:
             shortlist = compatible_peers[protocol.external_ip_version] or protocol.routing_table.find_close_peers(key)
