@@ -6,7 +6,7 @@ from functools import lru_cache
 
 from prometheus_client import Gauge
 
-from lbry.utils import is_valid_public_ipv4 as _is_valid_public_ipv4, LRUCache
+from lbry.utils import is_valid_public_ip as _is_valid_public_ip, LRUCache
 from lbry.dht import constants
 from lbry.dht.serialization.datagram import make_compact_address, make_compact_ip, decode_compact_address
 
@@ -23,9 +23,9 @@ def make_kademlia_peer(node_id: typing.Optional[bytes], address: typing.Optional
     return KademliaPeer(address, node_id, udp_port, tcp_port=tcp_port, allow_localhost=allow_localhost)
 
 
-def is_valid_public_ipv4(address, allow_localhost: bool = False):
+def is_valid_public_ip(address, allow_localhost: bool = False):
     allow_localhost = bool(allow_localhost or ALLOW_LOCALHOST)
-    return _is_valid_public_ipv4(address, allow_localhost)
+    return _is_valid_public_ip(address, allow_localhost=allow_localhost)
 
 
 class PeerManager:
@@ -176,7 +176,7 @@ class KademliaPeer:
             raise ValueError(f"invalid udp port: {self.address}:{self.udp_port}")
         if self.tcp_port is not None and not 1024 <= self.tcp_port <= 65535:
             raise ValueError(f"invalid tcp port: {self.address}:{self.tcp_port}")
-        if not is_valid_public_ipv4(self.address, self.allow_localhost):
+        if not is_valid_public_ip(self.address, self.allow_localhost):
             raise ValueError(f"invalid ip address: '{self.address}'")
 
     def update_tcp_port(self, tcp_port: int):
