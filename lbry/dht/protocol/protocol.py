@@ -1,5 +1,6 @@
 import logging
 import socket
+import ipaddress
 import functools
 import hashlib
 import asyncio
@@ -301,6 +302,12 @@ class KademliaProtocol(DatagramProtocol):
         self.loop = loop
         self.node_id = node_id
         self.external_ip = external_ip
+        self.external_ip_version = 0
+        self.external_ip_family = socket.AF_UNSPEC
+        if self.external_ip:
+            ipaddr = ipaddress.ip_address(external_ip)
+            self.external_ip_version = ipaddr.version
+            self.external_ip_family = socket.AF_INET6 if ipaddr.version == 6 else socket.AF_INET
         self.udp_port = udp_port
         self.peer_port = peer_port
         self.is_seed_node = False
@@ -529,6 +536,7 @@ class KademliaProtocol(DatagramProtocol):
                 )
 
     def datagram_received(self, datagram: bytes, address: typing.Tuple[str, int]) -> None:  # pylint: disable=arguments-renamed
+        #print(f'{self.external_ip}:{self.udp_port} received msg from {address[:2]}')
         try:
             message = decode_datagram(datagram)
         except (ValueError, TypeError, DecodeError):

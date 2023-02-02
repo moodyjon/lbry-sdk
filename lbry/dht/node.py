@@ -2,6 +2,8 @@ import logging
 import asyncio
 import typing
 import socket
+import ipaddress
+from collections import defaultdict
 
 from prometheus_client import Gauge
 
@@ -9,7 +11,7 @@ from lbry.utils import aclosing, resolve_host
 from lbry.dht import constants
 from lbry.dht.peer import make_kademlia_peer
 from lbry.dht.protocol.distance import Distance
-from lbry.dht.protocol.iterative_find import IterativeNodeFinder, IterativeValueFinder
+from lbry.dht.protocol.iterative_find import IterativeNodeFinder, IterativeValueFinder, InterleavingFinder
 from lbry.dht.protocol.protocol import KademliaProtocol
 
 if typing.TYPE_CHECKING:
@@ -195,14 +197,26 @@ class Node:
         self._join_task = self.loop.create_task(self.join_network(interface, known_node_urls))
 
     def get_iterative_node_finder(self, key: bytes, shortlist: typing.Optional[typing.List['KademliaPeer']] = None,
-                                  max_results: int = constants.K) -> IterativeNodeFinder:
-        shortlist = shortlist or self.protocol.routing_table.find_close_peers(key)
-        return IterativeNodeFinder(self.loop, self.protocol, key, max_results, shortlist)
+                                  max_results: int = constants.K) -> InterleavingFinder[IterativeNodeFinder]:
+        finders = []
+        compatible_peers = defaultdict(list)
+        for peer in shortlist:
+            compatible_peers[ipaddress.ip_address(peer.address).version].append(peer)
+        for protocol in [self.protocol]:
+            shortlist = compatible_peers[protocol.external_ip_version] or protocol.routing_table.find_close_peers(key)
+            finders.append(IterativeNodeFinder(self.loop, protocol, key, max_results, shortlist))
+        return InterleavingFinder(*finders)
 
     def get_iterative_value_finder(self, key: bytes, shortlist: typing.Optional[typing.List['KademliaPeer']] = None,
-                                   max_results: int = -1) -> IterativeValueFinder:
-        shortlist = shortlist or self.protocol.routing_table.find_close_peers(key)
-        return IterativeValueFinder(self.loop, self.protocol, key, max_results, shortlist)
+                                   max_results: int = -1) -> InterleavingFinder[IterativeValueFinder]:
+        finders = []
+        compatible_peers = defaultdict(list)
+        for peer in shortlist:
+            compatible_peers[ipaddress.ip_address(peer.address).version].append(peer)
+        for protocol in [self.protocol]:
+            shortlist = compatible_peers[protocol.external_ip_version] or protocol.routing_table.find_close_peers(key)
+            finders.append(IterativeValueFinder(self.loop, protocol, key, max_results, shortlist))
+        return InterleavingFinder(*finders)
 
     async def peer_search(self, node_id: bytes, count=constants.K, max_results=constants.K * 2,
                           shortlist: typing.Optional[typing.List['KademliaPeer']] = None

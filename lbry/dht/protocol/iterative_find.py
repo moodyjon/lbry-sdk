@@ -185,6 +185,7 @@ class IterativeFinder(AsyncIterator):
             origin_address = (peer.address, peer.udp_port)
             if peer.node_id == self.protocol.node_id:
                 continue
+            #print(f'{origin_address[0]} {origin_address[1]} =?= {self.protocol.external_ip} {self.protocol.udp_port}')
             if origin_address == (self.protocol.external_ip, self.protocol.udp_port):
                 continue
             self._schedule_probe(peer)
@@ -359,3 +360,28 @@ class IterativeValueFinder(IterativeFinder):
         if self.protocol.data_store.has_peers_for_blob(self.key):
             return self.protocol.data_store.get_peers_for_blob(self.key)
         return []
+
+T = typing.TypeVar('T', bound=IterativeFinder)
+
+class InterleavingFinder(AsyncIterator, typing.Generic[T]):
+    """
+    Produces an interleaved sequence of results from
+    any number of IterativeFinders.
+    """
+    def __init__(self, *finders):
+        self.finders: typing.List[IterativeFinder] = finders
+        self.next_index: int = 0
+
+    def __aiter__(self):
+        for f in self.finders:
+            f.__aiter__()
+        return self
+
+    async def __anext__(self):
+        index = self.next_index
+        self.next_index += 1
+        return await self.finders[index%len(self.finders)].__anext__()
+
+    async def aclose(self):
+        for f in self.finders:
+            await f.aclose()
