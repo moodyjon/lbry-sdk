@@ -3,6 +3,7 @@ import os
 import asyncio
 import logging
 import binascii
+from socket import AF_UNSPEC
 import typing
 
 import base58
@@ -256,9 +257,16 @@ class DHTComponent(Component):
         return self.dht_node
 
     async def get_status(self):
+        def _status(protocol):
+            return {
+                'node_id': None if not protocol else binascii.hexlify(protocol.node_id),
+                'peers_in_routing_table': 0 if not protocol else len(protocol.routing_table.get_peers())
+            }
+        proto_statuses = [] if not self.dht_node else [_status(p) for p in self.dht_node.protocols.values()]
         return {
-            'node_id': None if not self.dht_node else binascii.hexlify(self.dht_node.protocol.node_id),
-            'peers_in_routing_table': 0 if not self.dht_node else len(self.dht_node.protocol.routing_table.get_peers())
+            'node_id': None if not self.dht_node else binascii.hexlify(self.dht_node.node_id),
+            'peers_in_routing_table': sum(map(lambda s: s['peers_in_routing_table'], proto_statuses)),
+            'protocols': proto_statuses,
         }
 
     def get_node_id(self):
@@ -272,16 +280,25 @@ class DHTComponent(Component):
         return node_id
 
     async def start(self):
-        log.info("start the dht")
+        log.info("Start the DHT")
         upnp_component = self.component_manager.get_component(UPNP_COMPONENT)
         self.external_peer_port = upnp_component.upnp_redirects.get("TCP", self.conf.tcp_port)
         self.external_udp_port = upnp_component.upnp_redirects.get("UDP", self.conf.udp_port)
-        external_ip = upnp_component.external_ip
         storage = self.component_manager.get_component(DATABASE_COMPONENT)
-        if not external_ip:
-            external_ip, _ = await utils.get_external_ip(self.conf.lbryum_servers)
-            if not external_ip:
+
+        if upnp_component.external_ip:
+            records = [(upnp_component.external_ip, "UPNP", '0.0.0.0')]
+        else:
+            records = await utils.get_external_ip(
+                self.conf.lbryum_servers, family=AF_UNSPEC, all_results=True,
+            )
+            if not records:
                 log.warning("failed to get external ip")
+            for i, (external, remote, local) in enumerate(records):
+                log.warning("external IP[%i]: %s local: %s from: %s", i, external, local, remote)
+
+        # construct mapping from local address to external address
+        external_ip = {local: external for external, _, local in records}
 
         self.dht_node = Node(
             self.component_manager.loop,
@@ -296,8 +313,8 @@ class DHTComponent(Component):
             is_bootstrap_node=self.conf.is_bootstrap_node,
             storage=storage
         )
-        self.dht_node.start(self.conf.network_interfaces[0], self.conf.known_dht_nodes)
-        log.info("Started the dht")
+        self.dht_node.start(self.conf.network_interfaces, self.conf.known_dht_nodes)
+        log.info("Started the DHT")
 
     async def stop(self):
         self.dht_node.stop()

@@ -922,15 +922,24 @@ class SQLiteStorage(SQLiteMixin):
         )
 
     # # # # # # # # # # dht functions # # # # # # # # # # #
-    async def get_persisted_kademlia_peers(self) -> typing.List[typing.Tuple[bytes, str, int, int]]:
+    async def get_persisted_kademlia_peers(self, node_id: typing.Optional[bytes] = None) \
+            -> typing.List[typing.Tuple[bytes, str, int, int]]:
         query = 'select node_id, address, udp_port, tcp_port from peer'
-        return [(binascii.unhexlify(n), a, u, t) for n, a, u, t in await self.db.execute_fetchall(query)]
+        params = ()
+        if node_id:
+            query += ' where node_id = ?'
+            params = (binascii.hexlify(node_id),)
+        return [(binascii.unhexlify(n), a, u, t) for n, a, u, t in await self.db.execute_fetchall(query, params)]
 
-    async def save_kademlia_peers(self, peers: typing.List['KademliaPeer']):
+    async def save_kademlia_peers(self, peers: typing.List['KademliaPeer'], node_id: typing.Optional[bytes] = None):
         def _save_kademlia_peers(transaction: sqlite3.Connection):
-            transaction.execute('delete from peer').fetchall()
+            if node_id:
+                transaction.execute('delete from peer where node_id = ?', (node_id,)).fetchall()
+            else:
+                transaction.execute('delete from peer').fetchall()
             transaction.executemany(
                 'insert into peer(node_id, address, udp_port, tcp_port) values (?, ?, ?, ?)',
                 ((binascii.hexlify(p.node_id), p.address, p.udp_port, p.tcp_port) for p in peers)
             ).fetchall()
+        print(f'saving: {peers}')
         return await self.db.run(_save_kademlia_peers)

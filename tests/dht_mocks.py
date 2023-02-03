@@ -43,7 +43,7 @@ def mock_network_loop(loop: asyncio.AbstractEventLoop,
     dht_network: typing.Dict[typing.Tuple[str, int], 'KademliaProtocol'] = dht_network if dht_network is not None else {}
 
     async def create_datagram_endpoint(proto_lam: typing.Callable[[], 'KademliaProtocol'],
-                                       from_addr: typing.Tuple[str, int]):
+                                       from_addr: typing.Tuple[str, int], family: int = 0):
         def sendto(data, to_addr):
             rx = dht_network.get(to_addr)
             if rx and rx.external_ip:
@@ -52,7 +52,10 @@ def mock_network_loop(loop: asyncio.AbstractEventLoop,
 
         protocol = proto_lam()
         transport = mock.Mock(spec=asyncio.DatagramTransport)
-        transport.get_extra_info = lambda k: {'socket': mock_sock}[k]
+        transport.get_extra_info = lambda k: {
+            'socket': mock_sock,
+            'sockname': mock_sock.getsockname(),
+        }[k]
         transport.is_closing = lambda: False
         transport.close = lambda: mock_sock.close()
         mock_sock.sendto = sendto
