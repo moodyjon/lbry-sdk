@@ -941,5 +941,4 @@ class SQLiteStorage(SQLiteMixin):
                 'insert into peer(node_id, address, udp_port, tcp_port) values (?, ?, ?, ?)',
                 ((binascii.hexlify(p.node_id), p.address, p.udp_port, p.tcp_port) for p in peers)
             ).fetchall()
-        print(f'saving: {peers}')
         return await self.db.run(_save_kademlia_peers)
